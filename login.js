@@ -20,10 +20,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema, collectionName);
 
-mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    console.log('Connected to the database');
-  })
+mongoose.connect(uri)
   .catch(error => {
     console.log('Error during connection:', error);
   });
@@ -88,27 +85,53 @@ router.post('/register', async (req, res) => {
   });
 
 router.get('/login', (req, res) => {
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'text/html');
-  res.end(`
-    <html>
-      <head>
-        <title>Login</title>
-      </head>
-      <body>
-        <h1>Login</h1>
-        <form method="POST" action="login">
-          <label for="email">Email:</label>
-          <input type="email" id="email" name="email" required><br>
+  const token = req.headers.cookie?.split(';').map(cookie => cookie.trim()).find(cookie => cookie.startsWith('token='));
 
-          <label for="password">Password:</label>
-          <input type="password" id="password" name="password" required><br>
+  if(token){
+    try{
+      const tokenValue = token.split('=')[1];
+      const decoded = jwt.verify(tokenValue, 'secretKey');
 
-          <input type="submit" value="Login">
-        </form>
-      </body>
-    </html>
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/html');
+      res.end(`
+      <html>
+        <head>
+          <title>Login</title>
+        </head>
+        <body>
+          <h1>Login</h1>
+          <p>You are already connected !</p>
+        </body>
+      </html>
+      `);
+    } catch (error) {
+      console.log('Error during login:', error);
+    }
+  } else {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/html');
+    res.end(`
+      <html>
+        <head>
+          <title>Login</title>
+        </head>
+        <body>
+          <h1>Login</h1>
+          <form method="POST" action="login">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required><br>
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required><br>
+
+            <input type="submit" value="Login">
+          </form>
+        </body>
+      </html>
   `);
+  }
+  
 });
 
 router.post('/login', async (req, res) => {
@@ -148,15 +171,13 @@ router.post('/login', async (req, res) => {
   });
 
 router.get('/users', async (req, res) => {
-    const token = req.headers.cookie?.split(';').map(cookie => cookie.trim()).find(cookie => cookie.startsWith('token='));
+  const token = req.headers.cookie?.split(';').map(cookie => cookie.trim()).find(cookie => cookie.startsWith('token='));
 
   if (token) {
     try {
         const users = await User.find();
-        console.log('Users:', users);
         const tokenValue = token.split('=')[1];
         const decoded = jwt.verify(tokenValue, 'secretKey');
-        console.log('Decoded token:', decoded);
 
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/html');
